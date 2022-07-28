@@ -335,6 +335,10 @@ class Connection(metaclass=ConnectionMeta):
         """
         self._check_open()
 
+        # Append to circular buffer of most recent executed statements
+        # for debugging.
+        self._recent_statements.append(query)
+
         if not args:
             self._recent_statements.append(query)
             return await self._protocol.query(query, timeout)
