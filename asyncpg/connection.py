@@ -9,6 +9,7 @@ import asyncio
 import asyncpg
 import collections
 import collections.abc
+from datetime import datetime, timezone
 import functools
 import itertools
 import inspect
@@ -305,6 +306,25 @@ class Connection(metaclass=ConnectionMeta):
         """
         return self._protocol.is_in_transaction()
 
+    def log_statement(self, context: str, statement: str, args=None):
+        when = datetime.now(timezone.utc)
+
+        if self._recent_statements:
+            most_recently_logged = self._recent_statements[-1]
+            # Each entry is (timestamp, calling context, sql statement, args (if any)) tuple.
+            (
+                _,
+                _,
+                prior_statement,
+                _,
+            ) = most_recently_logged
+            if prior_statement == statement:
+                # Do not double-log same query.
+                return
+
+        to_log = (when.strftime("%Y-%m-%d %H:%M:%S UTC"), context, statement, args)
+        self._recent_statements.append(to_log)
+
     async def execute(self, query: str, *args, timeout: float = None) -> str:
         """Execute an SQL command (or commands).
 
@@ -335,12 +355,8 @@ class Connection(metaclass=ConnectionMeta):
         """
         self._check_open()
 
-        # Append to circular buffer of most recent executed statements
-        # for debugging.
-        self._recent_statements.append(query)
-
         if not args:
-            self._recent_statements.append(query)
+            self.log_statement("execute no args", query)
             return await self._protocol.query(query, timeout)
 
         _, status, _ = await self._execute(
@@ -541,7 +557,7 @@ class Connection(metaclass=ConnectionMeta):
         """
         self._check_open()
 
-        self._recent_statements.append(query)
+        self.log_statement("cursor", query, args)
 
         return cursor.CursorFactory(
             self,
@@ -1802,7 +1818,7 @@ class Connection(metaclass=ConnectionMeta):
         ignore_custom_codec=False,
         record_class=None,
     ):
-        self._recent_statements.append(query)
+        self.log_statement("_do_execute", query)
         if timeout is None:
             stmt = await self._get_statement(
                 query,
