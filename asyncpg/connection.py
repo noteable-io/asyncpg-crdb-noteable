@@ -311,14 +311,15 @@ class Connection(metaclass=ConnectionMeta):
 
         if self._recent_statements:
             most_recently_logged = self._recent_statements[-1]
+            # Each entry is (timestamp, calling context, sql statement, args (if any)) tuple.
             (
-                prior_when,
-                prior_context,
+                _,
+                _,
                 prior_statement,
-                prior_args,
+                _,
             ) = most_recently_logged
             if prior_statement == statement:
-                # Do not double-log
+                # Do not double-log same query.
                 return
 
         to_log = (when.strftime("%Y-%m-%d %H:%M:%S UTC"), context, statement, args)
