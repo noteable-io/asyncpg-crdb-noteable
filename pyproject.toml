@@ -1,7 +1,36 @@
 [project]
-requires-python = ">=3.6"
 name = "asyncpg"
 version = "0.25.0"
+description = "An asyncio PostgreSQL driver"
+authors = [{name = "MagicStack Inc", email = "hello@magic.io"}]
+requires-python = '>=3.8.0'
+readme = "README.rst"
+license = {text = "Apache License, Version 2.0"}
+dynamic = ["optional-dependencies"]
+keywords = [
+    "database",
+    "postgres",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Database :: Front-Ends",
+]
+dependencies = [
+    'async_timeout>=4.0.3; python_version < "3.12.0"'
+]
 
 [build-system]
 requires = ["setuptools>=42", "wheel"]
