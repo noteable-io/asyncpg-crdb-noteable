@@ -15,7 +15,7 @@ from . import exceptions
 class PreparedStatement(connresource.ConnectionResource):
     """A representation of a prepared statement."""
 
-    __slots__ = ('_state', '_query', '_last_status')
+    __slots__ = ("_state", "_query", "_last_status", "_logged_args")
 
     def __init__(self, connection, query, state):
         super().__init__(connection)
@@ -100,8 +100,7 @@ class PreparedStatement(connresource.ConnectionResource):
         return self._state._get_attributes()
 
     @connresource.guarded
-    def cursor(self, *args, prefetch=None,
-               timeout=None) -> cursor.CursorFactory:
+    def cursor(self, *args, prefetch=None, timeout=None) -> cursor.CursorFactory:
         """Return a *cursor factory* for the prepared statement.
 
         :param args: Query arguments.
@@ -133,11 +132,11 @@ class PreparedStatement(connresource.ConnectionResource):
                  is actually a deserialized JSON output of the SQL
                  ``EXPLAIN`` command.
         """
-        query = 'EXPLAIN (FORMAT JSON, VERBOSE'
+        query = "EXPLAIN (FORMAT JSON, VERBOSE"
         if analyze:
-            query += ', ANALYZE) '
+            query += ", ANALYZE) "
         else:
-            query += ') '
+            query += ") "
         query += self._state.query
 
         if analyze:
@@ -211,7 +210,7 @@ class PreparedStatement(connresource.ConnectionResource):
         return data[0]
 
     @connresource.guarded
-    async def executemany(self, args, *, timeout: float=None):
+    async def executemany(self, args, *, timeout: float = None):
         """Execute the statement for each sequence of arguments in *args*.
 
         :param args: An iterable containing sequences of arguments.
@@ -220,12 +219,16 @@ class PreparedStatement(connresource.ConnectionResource):
 
         .. versionadded:: 0.22.0
         """
+        self._logged_args = args
         return await self.__do_execute(
-            lambda protocol: protocol.bind_execute_many(
-                self._state, args, '', timeout))
+            lambda protocol: protocol.bind_execute_many(self._state, args, "", timeout)
+        )
 
     async def __do_execute(self, executor):
         protocol = self._connection._protocol
+        self._connection.log_statement(
+            "preparedstatement __do_execute", self._query, self._logged_args
+        )
         try:
             return await executor(protocol)
         except exceptions.OutdatedSchemaCacheError:
@@ -238,17 +241,21 @@ class PreparedStatement(connresource.ConnectionResource):
             raise
 
     async def __bind_execute(self, args, limit, timeout):
+        self._logged_args = args
         data, status, _ = await self.__do_execute(
             lambda protocol: protocol.bind_execute(
-                self._state, args, '', limit, True, timeout))
+                self._state, args, "", limit, True, timeout
+            )
+        )
         self._last_status = status
         return data
 
     def _check_open(self, meth_name):
         if self._state.closed:
             raise exceptions.InterfaceError(
-                'cannot call PreparedStmt.{}(): '
-                'the prepared statement is closed'.format(meth_name))
+                "cannot call PreparedStmt.{}(): "
+                "the prepared statement is closed".format(meth_name)
+            )
 
     def _check_conn_validity(self, meth_name):
         self._check_open(meth_name)
